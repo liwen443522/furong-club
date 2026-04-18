@@ -584,12 +584,28 @@ function showTab(tab) {
 // Save original home content
 const originalHome = document.querySelector('.main').innerHTML;
 
+// CORS-safe fetch wrapper
+async function corsFetch(url) {
+  try {
+    const resp = await fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent(url));
+    if (!resp.ok) throw new Error('CORS proxy failed');
+    return await resp.text();
+  } catch(e) {
+    try {
+      const resp2 = await fetch('https://corsproxy.io/?' + encodeURIComponent(url));
+      if (!resp2.ok) throw new Error('CORS proxy 2 failed');
+      return await resp2.text();
+    } catch(e2) {
+      throw new Error('All proxies failed');
+    }
+  }
+}
+
 // Fetch A-stock indices
 async function fetchAStocks() {
   const codes = ['sh000001','sh000300','sz399001','sz399006','sh000016','sh000905','sh000688','sz399005'];
   try {
-    const resp = await fetch('https://qt.gtimg.cn/q=' + codes.join(','));
-    const text = await resp.text();
+    const text = await corsFetch('https://qt.gtimg.cn/q=' + codes.join(','));
     const items = document.querySelectorAll('.index-item');
     const lines = text.split('\n');
     let idx = 0;
@@ -648,8 +664,7 @@ async function fetchGlobal() {
 async function fetchFearGreed() {
   // Use a simplified estimation based on A-stock data
   try {
-    const resp = await fetch('https://qt.gtimg.cn/q=sh000001,sh000300,sz399001,sz399006');
-    const text = await resp.text();
+    const text = await corsFetch('https://qt.gtimg.cn/q=sh000001,sh000300,sz399001,sz399006');
     let totalPct = 0, count = 0;
     text.split('\n').forEach(line => {
       const parts = line.split('~');
@@ -700,10 +715,10 @@ async function refreshNews() {
   const newsList = document.getElementById('newsList');
   newsList.innerHTML = '<li class="news-item"><div class="news-dot"></div><div class="news-text">正在加载...</div></li>';
   
-  // Try Sina Finance RSS
+  // Try Sina Finance RSS via CORS proxy
   try {
-    const resp = await fetch('https://feed.mix.sina.com.cn/api/roll/get?pageid=153&lid=2517&k=&num=20&page=1&r=0.5');
-    const j = await resp.json();
+    const text = await corsFetch('https://feed.mix.sina.com.cn/api/roll/get?pageid=153&lid=2517&k=&num=20&page=1&r=0.5');
+    const j = JSON.parse(text);
     if (j.result && j.result.data) {
       newsList.innerHTML = '';
       j.result.data.forEach(item => {
@@ -744,8 +759,8 @@ async function fetchIPO() {
   tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:20px">加载中...</td></tr>';
   
   try {
-    const resp = await fetch('https://datacenter-web.eastmoney.com/api/data/v1/get?reportName=RPT_IPO_CENTER&columns=COMPOSE_CODE,STOCK_NAME,IPO_DATE,ISSUE_PRICE,PE_RATIO,UPPER_LIMIT_PRICE&pageNumber=1&pageSize=5&sortTypes=-1&sortColumns=IPO_DATE&source=WEB');
-    const j = await resp.json();
+    const text = await corsFetch('https://datacenter-web.eastmoney.com/api/data/v1/get?reportName=RPT_IPO_CENTER&columns=COMPOSE_CODE,STOCK_NAME,IPO_DATE,ISSUE_PRICE,PE_RATIO,UPPER_LIMIT_PRICE&pageNumber=1&pageSize=5&sortTypes=-1&sortColumns=IPO_DATE&source=WEB');
+    const j = JSON.parse(text);
     if (j.result && j.result.data) {
       tbody.innerHTML = '';
       j.result.data.slice(0,5).forEach(item => {
